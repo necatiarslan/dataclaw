@@ -1,0 +1,217 @@
+{
+  "name": "dataclaw",
+  "displayName": "DataClaw: AWS AI Assistant",
+  "description": "Let AI access AWS services and work for you",
+  "version": "1.0.0",
+  "publisher": "NecatiARSLAN",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/necatiarslan/dataclaw"
+  },
+  "icon": "media/extension/extension-icon.png",
+  "engines": {
+    "vscode": "^1.104.0"
+  },
+  "categories": [
+    "Other",
+    "AI",
+    "Chat",
+    "Testing",
+    "Programming Languages",
+    "Snippets"
+  ],
+  "keywords": [
+    "cloud",
+    "aws",
+    "mcp",
+    "ai",
+    "copilot",
+    "dataclaw",
+    "coding",
+    "agent"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "bin": {
+    "dataclaw-mcp": "./out/mcp/cli.js"
+  },
+  "contributes": {
+    "chatParticipants": [
+      {
+        "id": "dataclaw.chat",
+        "name": "DataClaw",
+        "fullName": "Data Claw",
+        "description": "Access AWS services through chat",
+        "isSticky": true
+      }
+    ],
+    "configuration": {
+      "title": "Data Claw: MCP",
+      "properties": {
+        "dataclaw.mcp.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the MCP stdio host. When disabled, MCP sessions cannot be started."
+        },
+        "dataclaw.mcp.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Host interface for the MCP bridge server."
+        },
+        "dataclaw.mcp.port": {
+          "type": "number",
+          "default": 37114,
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "TCP port for the MCP bridge server."
+        },
+        "dataclaw.mcp.sessionCap": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "description": "Maximum concurrent MCP stdio sessions. Additional requests queue until a slot is free."
+        },
+        "dataclaw.mcp.disabledTools": {
+          "type": "array",
+          "description": "List of tool names to disable for MCP sessions (independent from Service Access settings).",
+          "items": {
+            "type": "string",
+            "enum": [
+              "TestAwsConnectionTool",
+              "STSTool",
+              "S3Tool",
+              "S3FileOperationsTool",
+              "SNSTool",
+              "SQSTool",
+              "EC2Tool",
+              "FileOperationsTool",
+              "SessionTool",
+              "CloudWatchLogTool",
+              "LambdaTool",
+              "StepFuncTool",
+              "GlueTool",
+              "IAMTool",
+              "DynamoDBTool",
+              "APIGatewayTool",
+              "RDSTool",
+              "RDSDataTool",
+              "CloudFormationTool",
+              "EMRTool"
+            ]
+          },
+          "default": []
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "dataclaw.AskAwsclaw",
+        "title": "Data Claw:Ask Dataclaw"
+      },
+      {
+        "command": "dataclaw.RefreshCredentials",
+        "title": "Data Claw:Refresh Credentials"
+      },
+      {
+        "command": "dataclaw.ListAwsProfiles",
+        "title": "Data Claw:List Profiles"
+      },
+      {
+        "command": "dataclaw.SetAwsProfile",
+        "title": "Data Claw:Set Active Profile"
+      },
+      {
+        "command": "dataclaw.TestAwsConnection",
+        "title": "Data Claw:Test Aws Connection"
+      },
+      {
+        "command": "dataclaw.SetAwsEndpoint",
+        "title": "Data Claw:Set AWS Endpoint"
+      },
+      {
+        "command": "dataclaw.SetDefaultRegion",
+        "title": "Data Claw:Set Default AWS Region"
+      },
+      {
+        "command": "dataclaw.SetAwsReadonlyMode",
+        "title": "Data Claw:Set AWS Readonly Mode"
+      },
+      {
+        "command": "dataclaw.OpenCloudWatchView",
+        "title": "Data Claw:Open CloudWatch Log View"
+      },
+      {
+        "command": "dataclaw.OpenS3ExplorerView",
+        "title": "Data Claw:Open S3 Explorer View"
+      },
+      {
+        "command": "dataclaw.ShowCommandHistory",
+        "title": "Data Claw:Command History"
+      },
+      {
+        "command": "dataclaw.OpenServiceAccessView",
+        "title": "Data Claw:Service Access Settings"
+      },
+      {
+        "command": "dataclaw.StartMcpServer",
+        "title": "Data Claw:Start MCP Server"
+      },
+      {
+        "command": "dataclaw.StopMcpServers",
+        "title": "Data Claw:Stop MCP Servers"
+      },
+      {
+        "command": "dataclaw.OpenMcpManageView",
+        "title": "Data Claw:MCP Management"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -b --force",
+    "discover-tools": "ts-node scripts/discoverTools.ts",
+    "extract-schemas": "ts-node scripts/extractSchemas.ts",
+    "sync-schemas": "ts-node scripts/syncSchemas.ts",
+    "generate-package": "ts-node scripts/generatePackageJson.ts",
+    "validate-schemas": "ts-node scripts/validateSchemas.ts",
+    "prebuild": "npm run sync-schemas && npm run discover-tools && npm run generate-package",
+    "build": "npm run compile && node esbuild.js",
+    "build:prod": "npm run compile && node esbuild.js --production",
+    "typecheck": "tsc --noEmit --incremental",
+    "lint": "eslint src --ext ts --max-warnings=0",
+    "watch": "npm-run-all -p watch:*",
+    "watch:build": "node esbuild.js --watch",
+    "watch:types": "tsc --watch --incremental",
+    "test": "npm run prebuild && npm run build && npm run lint && node ./out/test/runTest.js",
+    "vscode:prepublish": "npm run prebuild && npm run typecheck && npm run build:prod"
+  },
+  "devDependencies": {
+    "@types/glob": "^9.0.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.0.3",
+    "@types/tmp": "^0.2.6",
+    "@types/vscode": "^1.104.0",
+    "@typescript-eslint/eslint-plugin": "^8.49.0",
+    "@typescript-eslint/parser": "^8.49.0",
+    "@vscode/test-electron": "^2.5.2",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.1",
+    "glob": "^13.0.0",
+    "mocha": "^11.7.5",
+    "npm-run-all": "^4.1.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "^1.5.2-r.1",
+    "@types/archiver": "^7.0.0",
+    "@vscode-elements/elements": "^2.3.1",
+    "@vscode/codicons": "^0.0.44",
+    "archiver": "^7.0.1",
+    "js-tiktoken": "^1.0.21",
+    "tmp": "^0.2.5"
+  }
+}
