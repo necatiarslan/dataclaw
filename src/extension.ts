@@ -5,6 +5,7 @@ import { AIHandler } from './chat/AIHandler';
 import { CommandHistoryView } from './common/CommandHistoryView';
 import { McpManager } from './mcp/McpManager';
 import { McpManageView } from './mcp/McpManageView';
+import { QueryFileTool } from './queryfile/QueryFileTool';
 
 export function activate(context: vscode.ExtensionContext) {
 	ui.logToOutput('Dataclaw is now active!');
@@ -25,14 +26,10 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	if (Session.Current?.IsHostSupportLanguageTools()) {
-		// Register language model tools dynamically from generated registry
-		// const { TOOLS } = require('./common/ToolRegistry');
-		// for (const tool of TOOLS) {
-		// 	context.subscriptions.push(
-		// 		vscode.lm.registerTool(tool.name, tool.instance)
-		// 	);
-		// }
-		// ui.logToOutput(`Registered ${TOOLS.length} language model tools`);
+		context.subscriptions.push(
+			vscode.lm.registerTool('dataclaw_QueryFileTool', new QueryFileTool())
+		);
+		ui.logToOutput('Registered QueryFileTool language model tool');
 	}
 	else {
 		ui.logToOutput(`Language model tools registration skipped for ${Session.Current?.HostAppName}`);
@@ -122,25 +119,8 @@ export function activate(context: vscode.ExtensionContext) {
 			McpManageView.Render(context.extensionUri, mcpManager);
 		}),
 
-		vscode.commands.registerCommand('dataclaw.LoadMoreResults', async (paginationContext: any) => {
-			if (!paginationContext) {
-				ui.showErrorMessage('Pagination context not available', new Error('No pagination context'));
-				return;
-			}
-
-			// Add pagination token to params based on tokenType
-			const updatedParams = { ...paginationContext.params };
-			if (paginationContext.tokenType === 'NextContinuationToken') {
-				updatedParams.ContinuationToken = paginationContext.paginationToken;
-			} else if (paginationContext.tokenType === 'NextToken') {
-				updatedParams.NextToken = paginationContext.paginationToken;
-			} else if (paginationContext.tokenType === 'NextMarker') {
-				updatedParams.Marker = paginationContext.paginationToken;
-			}
-
-			// Create and send a new chat request with the pagination params
-			const prompt = `Continue loading more results for: ${paginationContext.command} with previous parameters`;
-			await AIHandler.Current.askAI(prompt);
+		vscode.commands.registerCommand('dataclaw.LoadMoreResults', async () => {
+			// Reserved for future pagination support
 		})
 	);
 }

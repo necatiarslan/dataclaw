@@ -150,26 +150,7 @@ export class McpManager implements vscode.Disposable {
         const state = this.effectiveState();
         const disabled = new Set(state.disabledTools || []);
         const allToolNames = [
-            'TestAwsConnectionTool',
-            'STSTool',
-            'S3Tool',
-            'S3FileOperationsTool',
-            'SNSTool',
-            'SQSTool',
-            'EC2Tool',
-            'FileOperationsTool',
-            'SessionTool',
-            'CloudWatchLogTool',
-            'LambdaTool',
-            'StepFuncTool',
-            'GlueTool',
-            'IAMTool',
-            'DynamoDBTool',
-            'APIGatewayTool',
-            'RDSTool',
-            'RDSDataTool',
-            'CloudFormationTool',
-            'EMRTool'
+            'QueryFileTool'
         ];
 
         return allToolNames.filter(name => !disabled.has(name));

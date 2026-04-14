@@ -5,26 +5,14 @@ import * as fs from "fs";
 import * as path from "path";
 
 const PARTICIPANT_ID = "dataclaw.chat";
-const DEFAULT_PROMPT = "What can you do to help me with AWS tasks?";
+const DEFAULT_PROMPT = "What can I help you with? I can query and analyze data files using DuckDB.";
 
 // Enhanced resource tracking with relationships and metadata
 interface ResourceEntry {
   type: string;
   name: string;
-  arn?: string;
-  region?: string;
   timestamp: number;
   metadata?: Record<string, any>;
-  relatedResources?: string[]; // References to other resource keys
-}
-
-interface PaginationContext {
-  toolName: string;
-  command: string;
-  params: any;
-  paginationToken: string;
-  tokenType: string;
-  resourceKey?: string; // Link pagination to specific resource
 }
 
 export class AIHandler {
@@ -41,9 +29,6 @@ export class AIHandler {
   private resourceHistory: Map<string, ResourceEntry> = new Map();
   private resourceAccessOrder: string[] = []; // Track access order for LRU
   
-  // Track multiple pagination contexts by resource
-  private paginationContexts: Map<string, PaginationContext> = new Map();
-  
   // Track conversation turn for context relevance
   private conversationTurn: number = 0;
   
@@ -58,8 +43,6 @@ export class AIHandler {
   public updateLatestResource(resource: {
     type: string;
     name: string;
-    arn?: string;
-    region?: string;
     metadata?: Record<string, any>;
   }): void {
     const resourceKey = this.getResourceKey(resource.type, resource.name);
@@ -67,11 +50,8 @@ export class AIHandler {
     const entry: ResourceEntry = {
       type: resource.type,
       name: resource.name,
-      arn: resource.arn,
-      region: resource.region,
       timestamp: Date.now(),
       metadata: resource.metadata,
-      relatedResources: this.inferRelatedResources(resource)
     };
     
     this.resourceHistory.set(resourceKey, entry);
@@ -89,45 +69,6 @@ export class AIHandler {
 
   private getResourceKey(type: string, name: string): string {
     return `${type}:${name}`;
-  }
-
-  /**
-   * Infer resource relationships based on AWS conventions
-   */
-  private inferRelatedResources(resource: { type: string; name: string; metadata?: Record<string, any> }): string[] {
-    const related: string[] = [];
-    const metadata = resource.metadata || {};
-    
-    // Lambda function → CloudWatch Log Group
-    if (resource.type === 'Lambda Function') {
-      related.push(`CloudWatch Log Group:/aws/lambda/${resource.name}`);
-    }
-    
-    // CloudWatch Log Stream → Log Group
-    if (resource.type === 'CloudWatch Log Stream' && metadata.logGroupName) {
-      related.push(`CloudWatch Log Group:${metadata.logGroupName}`);
-    }
-    
-    // Glue Job → CloudWatch Log Group
-    if (resource.type === 'Glue Job') {
-      related.push(`CloudWatch Log Group:/aws-glue/jobs/output`);
-    }
-    
-    // Step Function → CloudWatch Log Group
-    if (resource.type === 'Step Function Execution' && metadata.stateMachineArn) {
-      related.push(`Step Function State Machine:${metadata.stateMachineArn}`);
-    }
-    
-    // EC2 Instance → VPC, Subnet, Security Groups
-    if (resource.type === 'EC2 Instance') {
-      if (metadata.vpcId) { related.push(`VPC:${metadata.vpcId}`); }
-      if (metadata.subnetId) { related.push(`Subnet:${metadata.subnetId}`); }
-      if (metadata.securityGroups) {
-        metadata.securityGroups.forEach((sg: string) => related.push(`Security Group:${sg}`));
-      }
-    }
-    
-    return related;
   }
 
   /**
@@ -175,7 +116,7 @@ export class AIHandler {
       return [];
     }
     
-    // Build hierarchical context
+    // Build context
     const contextLines: string[] = [];
     const processedKeys = new Set<string>();
     
@@ -183,28 +124,12 @@ export class AIHandler {
       const key = this.getResourceKey(resource.type, resource.name);
       if (processedKeys.has(key)) { continue; }
       
-      let line = `- ${resource.type}: ${resource.name}`;
-      if (resource.arn) { line += ` (${resource.arn})`; }
-      if (resource.region) { line += ` [${resource.region}]`; }
-      
+      const line = `- ${resource.type}: ${resource.name}`;
       contextLines.push(line);
       processedKeys.add(key);
-      
-      // Add related resources if they exist
-      if (resource.relatedResources && resource.relatedResources.length > 0) {
-        for (const relatedKey of resource.relatedResources) {
-          if (processedKeys.has(relatedKey)) { continue; }
-          
-          const related = this.resourceHistory.get(relatedKey);
-          if (related) {
-            contextLines.push(`  └─ ${related.type}: ${related.name}`);
-            processedKeys.add(relatedKey);
-          }
-        }
-      }
     }
     
-    const contextMessage = `Recent AWS resources in this conversation:\n${contextLines.join('\n')}`;
+    const contextMessage = `Recent resources in this conversation:\n${contextLines.join('\n')}`;
     
     return [
       vscode.LanguageModelChatMessage.User(contextMessage)
@@ -316,7 +241,7 @@ export class AIHandler {
   ): vscode.LanguageModelChatMessage[] {
     const messages: vscode.LanguageModelChatMessage[] = [];
 
-    messages.push(vscode.LanguageModelChatMessage.User(`AWS Expert: Use tools for tasks. Respond in Markdown; no JSON unless requested.`));
+    messages.push(vscode.LanguageModelChatMessage.User(`DuckDB Expert: Use tools for data analytics tasks. Respond in Markdown; no JSON unless requested.`));
 
     // Add summarized resources
     messages.push(...this.getLatestResources());
@@ -420,10 +345,10 @@ export class AIHandler {
    * Find where resource context ends (messages after system prompt that describe resources)
    */
   private findResourceContextEnd(messages: vscode.LanguageModelChatMessage[], startIdx: number): number {
-    // Resource context is the messages immediately after system that contain "Recent AWS resources"
+    // Resource context is the messages immediately after system that contain "Recent resources"
     for (let i = startIdx; i < Math.min(startIdx + 3, messages.length); i++) {
       const text = this.getMessageText(messages[i]);
-      if (text.includes('Recent AWS resources')) {
+      if (text.includes('Recent resources')) {
         return i + 1;
       }
     }
@@ -578,11 +503,7 @@ export class AIHandler {
         );
 
         const resultText = this.extractResultText(result);
-        this.checkForPaginationToken(resultText, toolCall);
         
-        // Auto-extract resources from tool results
-        this.autoExtractResources(resultText, toolCall);
-
         messages.push(
           vscode.LanguageModelChatMessage.User([
             new vscode.LanguageModelToolResultPart(toolCall.callId, [
@@ -662,153 +583,7 @@ export class AIHandler {
     }
   }
 
-  private checkForPaginationToken(
-    resultText: string,
-    toolCall: vscode.LanguageModelToolCallPart
-  ): void {
-    try {
-      const parsedResponse = JSON.parse(resultText);
-      if (parsedResponse?.pagination?.hasMore) {
-        const pagination = parsedResponse.pagination;
-        const tokenType = Object.keys(pagination).find(
-          (k) => k.endsWith("Token") && k !== "hasMore"
-        );
-        if (tokenType && pagination[tokenType]) {
-          const input = toolCall.input as any;
-          const contextKey = `${toolCall.name}:${input.command}`;
-          this.paginationContexts.set(contextKey, {
-            toolName: toolCall.name,
-            command: input.command,
-            params: input.params || {},
-            paginationToken: pagination[tokenType],
-            tokenType: tokenType,
-            resourceKey: this.getResourceKeyFromParams(input.params || {})
-          });
-        }
-      }
-    } catch (parseErr) {
-      // If response is not JSON, ignore pagination detection
-    }
-  }
-
-  /**
-   * Automatically extract resources from tool result JSON
-   * Detects common AWS resource patterns in tool responses
-   */
-  private autoExtractResources(resultText: string, toolCall: vscode.LanguageModelToolCallPart): void {
-    try {
-      const parsed = JSON.parse(resultText);
-      const input = toolCall.input as any;
-      const command = input.command;
-      const params = input.params || {};
-
-    } catch (err) {
-      // Not JSON or parsing failed - skip auto-extraction
-    }
-  }
-
-
-  /**
-   * Extract resource key from tool call params (for linking pagination)
-   */
-  private getResourceKeyFromParams(params: any): string | undefined {
-    // S3
-    if (params.bucketName) {
-      return `S3 Bucket:${params.bucketName}`;
-    }
-    // Lambda
-    if (params.functionName) {
-      return `Lambda Function:${params.functionName}`;
-    }
-    // CloudWatch
-    if (params.logGroupName) {
-      return `CloudWatch Log Group:${params.logGroupName}`;
-    }
-    // DynamoDB
-    if (params.tableName) {
-      return `DynamoDB Table:${params.tableName}`;
-    }
-    // Glue
-    if (params.jobName) {
-      return `Glue Job:${params.jobName}`;
-    }
-    if (params.databaseName) {
-      return `Glue Database:${params.databaseName}`;
-    }
-    // Step Functions
-    if (params.stateMachineArn) {
-      return `Step Function State Machine:${params.stateMachineArn}`;
-    }
-    
-    return undefined;
-  }
-
-  /**
-   * Find most recent resource of a specific type
-   */
-  private findResourceByType(type: string): ResourceEntry | undefined {
-    // Search in reverse order (most recent first)
-    for (let i = this.resourceAccessOrder.length - 1; i >= 0; i--) {
-      const key = this.resourceAccessOrder[i];
-      const resource = this.resourceHistory.get(key);
-      if (resource && resource.type === type) {
-        return resource;
-      }
-    }
-    return undefined;
-  }
-
   private renderResponseButtons(stream: vscode.ChatResponseStream): void {
-  }
-
-  private renderCloudWatchButton(stream: vscode.ChatResponseStream): void {
-    const logGroup = this.findResourceByType("CloudWatch Log Group");
-    if (!logGroup) {
-      return;
-    }
-
-    const logStream = this.findResourceByType("CloudWatch Log Stream");
-
-    stream.markdown("\n\n");
-    stream.button({
-      command: "dataclaw.OpenCloudWatchView",
-      title: "Open Log View",
-      arguments: logStream ? [logGroup.name, logStream.name] : [logGroup.name],
-    });
-  }
-
-  private renderS3Button(stream: vscode.ChatResponseStream): void {
-    const bucket = this.findResourceByType("S3 Bucket");
-    if (!bucket) {
-      return;
-    }
-
-    stream.markdown("\n\n");
-    stream.button({
-      command: "dataclaw.OpenS3ExplorerView",
-      title: "Open S3 View",
-      arguments: [bucket.name],
-    });
-  }
-
-  private renderPaginationButton(stream: vscode.ChatResponseStream): void {
-    // Get most recent pagination context
-    if (this.paginationContexts.size === 0) {
-      return;
-    }
-
-    const contexts = Array.from(this.paginationContexts.values());
-    const mostRecent = contexts[contexts.length - 1];
-    if (!mostRecent) {
-      return;
-    }
-
-    stream.markdown("\n\n");
-    stream.button({
-      command: "dataclaw.LoadMoreResults",
-      title: "Load More",
-      arguments: [mostRecent],
-    });
   }
 
   private renderAppreciationMessage(stream: vscode.ChatResponseStream): void {
@@ -859,7 +634,7 @@ export class AIHandler {
 
     const commandId = this.getCommandIdForEnvironment();
     await vscode.commands.executeCommand(commandId, {
-      query: "@aws " + (prompt || DEFAULT_PROMPT),
+      query: "@DataClaw " + (prompt || DEFAULT_PROMPT),
     });
   }
 

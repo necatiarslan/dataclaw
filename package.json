@@ -1,7 +1,7 @@
 {
   "name": "dataclaw",
-  "displayName": "DataClaw: AWS AI Assistant",
-  "description": "Let AI access AWS services and work for you",
+  "displayName": "DataClaw: DuckDB Data Analytics",
+  "description": "AI-assisted data analytics powered by DuckDB - query and analyze local data files with natural language",
   "version": "1.0.0",
   "publisher": "NecatiARSLAN",
   "repository": {
@@ -21,14 +21,15 @@
     "Snippets"
   ],
   "keywords": [
-    "cloud",
-    "aws",
+    "duckdb",
+    "parquet",
+    "analytics",
+    "data",
+    "sql",
     "mcp",
     "ai",
     "copilot",
-    "dataclaw",
-    "coding",
-    "agent"
+    "dataclaw"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -43,7 +44,7 @@
         "id": "dataclaw.chat",
         "name": "DataClaw",
         "fullName": "Data Claw",
-        "description": "Access AWS services through chat",
+        "description": "Query and analyze local data files with DuckDB",
         "isSticky": true
       }
     ],
@@ -75,84 +76,66 @@
         },
         "dataclaw.mcp.disabledTools": {
           "type": "array",
-          "description": "List of tool names to disable for MCP sessions (independent from Service Access settings).",
+          "description": "List of tool names to disable for MCP sessions.",
           "items": {
             "type": "string",
             "enum": [
-              "TestAwsConnectionTool",
-              "STSTool",
-              "S3Tool",
-              "S3FileOperationsTool",
-              "SNSTool",
-              "SQSTool",
-              "EC2Tool",
-              "FileOperationsTool",
-              "SessionTool",
-              "CloudWatchLogTool",
-              "LambdaTool",
-              "StepFuncTool",
-              "GlueTool",
-              "IAMTool",
-              "DynamoDBTool",
-              "APIGatewayTool",
-              "RDSTool",
-              "RDSDataTool",
-              "CloudFormationTool",
-              "EMRTool"
+              "QueryFileTool"
             ]
           },
           "default": []
         }
       }
     },
+    "languageModelTools": [
+      {
+        "name": "dataclaw_QueryFileTool",
+        "tags": ["duckdb", "data", "sql", "parquet", "csv", "json", "analytics"],
+        "displayName": "Query Data File",
+        "toolReferenceName": "queryFile",
+        "modelDescription": "Execute a SQL query against one or more data files (Parquet, CSV, JSON, XLSX). Files are automatically registered as DuckDB views named by their basename (without extension), so SQL can reference them by view name or by raw file path. Returns columns, data types, row count, and up to pageSize rows.",
+        "userDescription": "Query and analyze data files using DuckDB SQL",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "const": "queryFile",
+              "description": "Must be 'queryFile'"
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "filePaths": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Absolute paths to data files to register as DuckDB views (Parquet, CSV, JSON, XLSX). Each file is accessible as a view named by its basename without extension."
+                },
+                "sql": {
+                  "type": "string",
+                  "description": "SQL query to execute. Can reference files by view name (e.g. SELECT * FROM sales) or by raw path (e.g. SELECT * FROM '/path/to/sales.parquet')."
+                },
+                "pageSize": {
+                  "type": "number",
+                  "description": "Maximum number of rows to return per statement (default: 100)."
+                }
+              },
+              "required": ["filePaths", "sql"]
+            }
+          },
+          "required": ["command", "params"]
+        }
+      }
+    ],
     "commands": [
       {
         "command": "dataclaw.AskAwsclaw",
         "title": "Data Claw:Ask Dataclaw"
       },
       {
-        "command": "dataclaw.RefreshCredentials",
-        "title": "Data Claw:Refresh Credentials"
-      },
-      {
-        "command": "dataclaw.ListAwsProfiles",
-        "title": "Data Claw:List Profiles"
-      },
-      {
-        "command": "dataclaw.SetAwsProfile",
-        "title": "Data Claw:Set Active Profile"
-      },
-      {
-        "command": "dataclaw.TestAwsConnection",
-        "title": "Data Claw:Test Aws Connection"
-      },
-      {
-        "command": "dataclaw.SetAwsEndpoint",
-        "title": "Data Claw:Set AWS Endpoint"
-      },
-      {
-        "command": "dataclaw.SetDefaultRegion",
-        "title": "Data Claw:Set Default AWS Region"
-      },
-      {
-        "command": "dataclaw.SetAwsReadonlyMode",
-        "title": "Data Claw:Set AWS Readonly Mode"
-      },
-      {
-        "command": "dataclaw.OpenCloudWatchView",
-        "title": "Data Claw:Open CloudWatch Log View"
-      },
-      {
-        "command": "dataclaw.OpenS3ExplorerView",
-        "title": "Data Claw:Open S3 Explorer View"
-      },
-      {
         "command": "dataclaw.ShowCommandHistory",
         "title": "Data Claw:Command History"
-      },
-      {
-        "command": "dataclaw.OpenServiceAccessView",
-        "title": "Data Claw:Service Access Settings"
       },
       {
         "command": "dataclaw.StartMcpServer",

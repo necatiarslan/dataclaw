@@ -57,29 +57,7 @@ export abstract class BaseTool<TInput extends BaseToolInput> implements vscode.L
                     command,
                     message: `${command} executed successfully`,
                     data: result,
-                    metadata: {
-                        requestId: result?.$metadata?.requestId,
-                        httpStatusCode: result?.$metadata?.httpStatusCode,
-                    }
                 };
-                
-                // Check for pagination tokens in the result
-                if (result?.NextContinuationToken) {
-                    response.pagination = {
-                        hasMore: true,
-                        nextContinuationToken: result.NextContinuationToken
-                    };
-                } else if (result?.NextToken) {
-                    response.pagination = {
-                        hasMore: true,
-                        nextToken: result.NextToken
-                    };
-                } else if (result?.NextMarker) {
-                    response.pagination = {
-                        hasMore: true,
-                        nextMarker: result.NextMarker
-                    };
-                }
                 
                 responseData = response;
 

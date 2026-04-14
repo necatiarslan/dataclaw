@@ -28,9 +28,9 @@ export class McpDispatcher {
         this.toolMetadata = new Map<string, any>();
         this.resources = [
             {
-                uri: `file://${path.join(__dirname, '../../README_AWS_SERVICES.md')}`,
-                name: 'README_AWS_SERVICES',
-                description: 'Reference for AWS services supported by Dataclaw MCP tools',
+                uri: `file://${path.join(__dirname, '../../README.md')}`,
+                name: 'README',
+                description: 'Reference for Dataclaw DuckDB analytics tools',
                 mimeType: 'text/markdown'
             }
         ];
