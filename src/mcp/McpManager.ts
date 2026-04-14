@@ -150,7 +150,16 @@ export class McpManager implements vscode.Disposable {
         const state = this.effectiveState();
         const disabled = new Set(state.disabledTools || []);
         const allToolNames = [
-            'QueryFileTool'
+            'QueryFileTool',
+            'FileMetadataTool',
+            'ColumnStatsTool',
+            'ExportTool',
+            'SummarizeTool',
+            'ChartTool',
+            'SampleTool',
+            'S3FileTool',
+            'DiffTool',
+            'ExcelSheetTool'
         ];
 
         return allToolNames.filter(name => !disabled.has(name));

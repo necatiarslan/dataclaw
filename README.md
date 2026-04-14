@@ -1,128 +1,167 @@
-# Data Claw: AWS AI Assistant 🤖❤️☁️
+# DataClaw: AI Data Analytics 📊
 
-![screenshoot](docs/readme/movie.gif)
-
-Data Claw is a Visual Studio Code (and forks including Google Antigravity, Windsurf etc.) extension that brings AWS interaction into your chat experience. Use natural language to inspect and operate AWS resources with your existing credentials. The extension exposes AWS-aware tools that execute actions directly on your behalf.
+DataClaw is a Visual Studio Code extension that brings AI-assisted data analytics into your chat experience. Use natural language to query and analyze local data files (Parquet, CSV, JSON, XLSX) — without leaving your editor.
 
 ## 💬 Chat Modes
 
-- **Agent Or Plan Mode**: The extension registers AWS service tools that the AI assistant can invoke based on your requests. You can ask questions, and the assistant will call the appropriate tools to fetch data or perform actions. We recommend starting with this mode for most use cases.
+- **Agent or Plan Mode**: The extension registers data tools that the AI assistant can invoke based on your requests. Ask questions in plain English and the assistant will call the appropriate tools to query your files, summarize data, or run SQL. Recommended for most use cases.
 
-- **Ask Or Edit Mode**: You can also ask questions or issue commands directly using the "@aws" prefix in the chat input. The assistant will respond with the requested information or perform the specified actions. We recommend this mode for quick queries or simple tasks or if you dont have access to Agent/Plan mode.
+- **Ask or Edit Mode**: Use the `@DataClaw` prefix in the chat input to issue queries directly. Recommended for quick one-off queries.
 
 ## 🔌 MCP Support
-- **Vscode**: No need to setup MCP server. Data Claw is build in Vscode Chat (Copilot) and no extra setup is required. Just start a chat about your AWS resources.
-- **Google Antigravity / Windsurf / Others**: You need a local MCP server to connect these editors with Data Claw. See the [README_MCP](README_MCP.md) for detailed setup instructions.
-
-## 🔑 Supported AWS Services
-| | | | |
-|---|---|---|---|
-| S3 | SQS | SNS | EC2 |
-| Lambda | Step Functions | EMR | CloudWatch Logs |
-| CloudFormation | RDS | DynamoDB | IAM |
-| STS | Glue | API Gateway | |
-
-Click [here](README_AWS_SERVICES.md) for the full list of supported AWS services and actions.
+- **VS Code**: No MCP setup needed. DataClaw is built into VS Code Chat (Copilot) — just open a chat and ask about your data files.
+- **Google Antigravity / Windsurf / Others**: You need a local MCP server to connect these editors with DataClaw. See [README_MCP](README_MCP.md) for setup instructions.
 
 ## 🤖 Available Tools
-- **Session & STS**: manage profile/region/endpoint, refresh credentials, GetCallerIdentity, session tokens.
-- **S3**: list buckets/objects, get/put/delete objects.
-- **SQS & SNS**: list queues/topics, send/receive/delete messages, get queue URLs.
-- **EC2**: describe instances, images, VPCs, security groups, console output.
-- **Lambda & Step Functions**: invoke functions, list state machines and executions.
-- **EMR**: describe clusters, steps, studios, notebook executions, and scaling policies.
-- **CloudWatch Logs**: search and retrieve log events.
-- **CloudFormation**: list stacks, describe stack resources and events.
-- **RDS & RDS Data**: list DB instances/clusters; run SQL via RDS Data API.
-- **DynamoDB**: list tables, describe tables, scan/query items.
-- **IAM & STS**: identity and credential utilities.
-- **API Gateway, Glue**: service management and S3-compatible endpoint support.
-- **File Operations**: work with local workspace context.
+
+### QueryFileTool (`#queryFile`)
+Executes a SQL query against one or more data files.
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `filePaths` | `string[]` | ✅ | Absolute paths to data files (Parquet, CSV, JSON, XLSX) |
+| `sql` | `string` | ✅ | SQL to execute. Reference files by view name (e.g. `SELECT * FROM sales`) or by path |
+| `pageSize` | `number` | — | Max rows to return per statement (default: 100) |
+
+Each file is automatically accessible by its basename without extension. For example `/data/sales.parquet` becomes the view `sales`.
+
+### FileMetadataTool (`#fileMetadata`)
+Inspect data file schema and metadata without writing SQL.
+
+| Command | Description |
+|---|---|
+| `describeFile` | Column names, types, and row count |
+| `summarizeFile` | Per-column distinct count, null percentage, and type |
+| `parquetMetadata` | Parquet footer key-value metadata |
+
+### ColumnStatsTool (`#columnStats`)
+Get detailed statistics for a single column — count, nulls, min, max, mean, stddev, quantiles, histogram, top values, or timeseries depending on column type.
+
+| Command | Description |
+|---|---|
+| `fileColumnStats` | Stats from a data file directly |
+| `cacheColumnStats` | Stats from a cached query result |
+
+### ExportTool (`#exportResults`)
+Export cached query results to CSV, Parquet, JSON, or JSONL.
+
+### SummarizeTool (`#summarize`)
+Quick summary of all columns in a file or cached query result — distinct count, null percentage, and inferred type per column.
+
+| Command | Description |
+|---|---|
+| `summarizeFile` | Summarize columns from a data file |
+| `summarizeCache` | Summarize columns from a cached query result |
+
+### ChartTool (`#chart`)
+Get chart-ready data for a column — histogram for numeric, top values for string, timeseries for date columns.
+
+| Command | Description |
+|---|---|
+| `chartFileColumn` | Chart data from a file column |
+| `chartCacheColumn` | Chart data from a cached result column |
+
+### SampleTool (`#sample`)
+Get a random sample of rows using reservoir sampling.
+
+| Command | Description |
+|---|---|
+| `sampleFile` | Random rows from a data file |
+| `sampleCache` | Random rows from a cached query result |
+
+### S3FileTool (`#s3File`)
+Query or describe data files stored in Amazon S3 directly — no download needed.
+
+| Command | Description |
+|---|---|
+| `queryS3` | Run SQL against an S3 file |
+| `describeS3` | Get schema and row count of an S3 file |
+
+### DiffTool (`#diff`)
+Compare two data files and find added, removed, or changed rows.
+
+| Command | Description |
+|---|---|
+| `diffFiles` | Find differences between two data files |
+
+Supports `mode`: `added`, `removed`, `changed`, or `all`. Use `keyColumns` to detect value changes on matching rows.
+
+### ExcelSheetTool (`#excelSheet`)
+Work with specific sheets in Excel (.xlsx) files.
+
+| Command | Description |
+|---|---|
+| `describeSheet` | Column names, types, and row count for a sheet |
+| `summarizeSheet` | Per-column statistics for a sheet |
+| `sheetColumnStats` | Detailed stats for one column in a sheet |
+| `querySheet` | Run SQL against a specific sheet |
+
+**Example prompts:**
+- "Show me the first 10 rows of /Users/me/data/orders.parquet"
+- "How many records are in /tmp/users.csv?"
+- "Join /data/orders.parquet and /data/customers.csv on customer_id and show revenue by region"
+- "What are the top 5 products by sales in /data/sales.parquet?"
+- "Summarize all columns in /data/events.parquet"
+- "Show me the distribution of the age column in /data/users.csv"
+- "Give me a random sample of 20 rows from /data/logs.parquet"
+- "Compare /data/v1.parquet and /data/v2.parquet and show what changed"
+- "Describe the Sales sheet in /data/report.xlsx"
+- "Query s3://my-bucket/data/events.parquet and show the first 10 rows"
+- "Export the results to /tmp/output.csv"
 
 ## ❓ Q & A
 
-### Authentication
-- **Q**: How does Data Claw authenticate to AWS?  
-   **A**: It uses your existing AWS credentials configured locally (via AWS CLI config, SSO, environment variables, etc.) and the AWS SDK provider chain.
+### Data & Privacy
+- **Q**: Does DataClaw send my data files to the cloud?  
+  **A**: No. All query execution happens locally inside the extension. Only the query results (up to `pageSize` rows) are passed to the AI model as context.
 
-- **Q**: Are my AWS credentials stored by the extension?  
-   **A**: No, credentials are not persisted outside VS Code global state. You can refresh or clear cached credentials from the Command Palette.
+- **Q**: What file formats are supported?  
+  **A**: Parquet, CSV, JSON/JSONL, and XLSX.
 
-### Permissions
-- **Q**: What permissions are required?  
-   **A**: The extension invokes AWS APIs using your account permissions. Use least-privilege IAM policies and verify the active profile before running mutating actions.
+- **Q**: Can I query multiple files at once?  
+  **A**: Yes. Pass multiple paths in `filePaths` and reference them by view name in your SQL query.
 
-- **Q**: Can I use this extension with multiple AWS accounts?  
-   **A**: Yes, you can switch profiles using the status bar AWS selector or commands in the Command Palette.
+### Performance
+- **Q**: How large a file can I query?  
+  **A**: Files much larger than available RAM are supported through out-of-core processing. Memory is capped at ~1.5 GB within the extension host, with spill-to-disk enabled automatically.
 
-### Cost
-- **Q**: Is there any cost associated with using this extension?  
-   **A**: The extension itself is free to use, but AWS API calls may incur costs based on your usage and AWS pricing.
-
-### Security
-- **Q**: Are my AWS Credentials exposed to Copilot or other AI services?  
-   **A**: No, your AWS Credentials are handled locally by the extension and are not sent to any external AI services.
+- **Q**: Will querying large Parquet files be slow?  
+  **A**: Parquet queries are typically fast — only the columns and row groups needed for your query are read (predicate and projection pushdown).
 
 ### Safety
-- **Q**: Is it possible the extension could perform unintended actions on my AWS account?  
-   **A**: The extension always gets confirmation from you for the actions below before executing them:
-    - put, post, upload, download, delete, copy, create, update, insert, commit, rollback, send, publish, invoke, start, execute. 
-    - List, get, describe, search, scan, query actions are read-only and safe.
-
-- **Q**: Can I see the AWS API calls being made?  
-   **A**: Yes, you can see the AWS API call history in "Command History" panel and in the output channel named "Data Claw-Log". To open the output channel, go to View -> Output, then select "Data Claw-Log" from the dropdown. Top open the "Command History" panel, click on the "Data Claw: Open Command History" command from the Command Palette. You can see the api call responses when you export the history to a file.
-
-## 📺 Screenshots
-
-| | | |
-|---|---|---|
-| ![Screenshot 1](docs/readme/1.png) | ![Screenshot 2](docs/readme/2.png) | ![Screenshot 3](docs/readme/3.png) |
-| ![Screenshot 4](docs/readme/4.png) | ![Screenshot 5](docs/readme/5.png) | ![Screenshot 6](docs/readme/6.png) |
-| ![Screenshot 7](docs/readme/7.png) | ![Screenshot 8](docs/readme/8.png) | ![Screenshot 9](docs/readme/9.png) |
-| ![Screenshot 10](docs/readme/10.png) | ![Screenshot 11](docs/readme/11.png) | ![Screenshot 12](docs/readme/12.png) |
-| ![Screenshot 13](docs/readme/13.png) | ![Screenshot 14](docs/readme/14.png) | ![Screenshot 15](docs/readme/15.png) |
-
+- **Q**: Can DataClaw modify my data files?  
+  **A**: No. Files are opened read-only. No write operations are performed on source files.
 
 ## ⚙️ Prerequisites
 
-- AWS credentials configured locally (via AWS CLI config, SSO, environment variables, or other supported methods).
+- VS Code 1.104 or later (for Language Model Tools support)
+- Data files in a supported format: Parquet, CSV, JSON, or XLSX
 
 ## 🏁 Quick Start
 
-1. **Aws Credentials**: Ensure you have AWS credentials configured locally. You can use AWS CLI to set up profiles or SSO. 
-2. **Test connectivity**: Click "🔌Aws" in the status bar and Run "Data Claw: Test AWS Connection" to verify AWS access. You can set default profile, region and endpoint (for Localstack) if you need.
-3. **Google Antigravity / Windsurf / Others**: You need a local MCP server to connect these editors with Data Claw. See the [README_MCP](README_MCP.md) for detailed setup instructions.
-4. **Open Chat**: Open Chat (use @aws in Ask or Edit Mode) and ask a question, for example:
-   - List my S3 buckets
-   - Tail the latest CloudWatch log events for /aws/lambda/my-fn
-   - Describe EC2 instances in us-west-2
-   - Publish a message to my SNS topic
-5. **Review results**: The assistant will call the appropriate tool, stream results, and suggest follow-up actions.
+1. **Install** the DataClaw extension from the VS Code Marketplace.
+2. **Open Chat** in Agent mode.
+3. **Ask a question**, for example:
+   - "Show me the schema of /Users/me/data/sales.parquet"
+   - "How many rows are in /tmp/orders.csv?"
+   - "What are the top 10 customers by revenue in /data/sales.parquet?"
+4. **Review results**: The assistant will call `QueryFileTool`, execute the SQL locally, and stream the results back.
+5. **MCP (non-VS Code editors)**: Start the MCP server from the Command Palette → "Data Claw: Start MCP Server", then configure your editor to connect. See [README_MCP](README_MCP.md).
 
-## 🧠 Install Skills
+## 🛠️ Commands
 
-Data Claw ships with a set of agent skills that teach GitHub Copilot how to work with AWS services. Install them with:
-
-```bash
-npx skills add necatiarslan/dataclaw
-```
-
-Once installed, the skills are available in your agent sessions and provide the assistant with deep AWS service knowledge, best practices, and tool-usage guidance for all supported services.
-
-## 👮 Authentication & Security
-
-- **Credentials**: Resolved via the AWS SDK provider chain. The selected profile is stored in VS Code global state and reapplied across sessions.
-- **Privacy**: No credentials are persisted outside VS Code global state. You can refresh or clear cached credentials from the Command Palette.
-- **Permissions**: The assistant invokes AWS APIs using your account permissions. Use least-privilege IAM policies and verify the active profile before running mutating actions.
+| Command | Description |
+|---|---|
+| Data Claw: Ask Dataclaw | Open the DataClaw chat participant |
+| Data Claw: Command History | View history of tool calls and results |
+| Data Claw: Start MCP Server | Start the local MCP bridge server (non-VS Code editors) |
+| Data Claw: Stop MCP Servers | Stop all active MCP sessions |
+| Data Claw: MCP Management | View and manage MCP server settings |
 
 ## 📋 TODO
-- Add more AWS services and actions.
-   - Tier1 : ECS, EKS, Secrets Manager, Systems Manager, ECR, CloudWatch Metrics & Alarms
-   - Tier2 : ElastiCache, EventBridge, Kinesis, Route53, EFS, Cloud Trail, KMS, ELB
-   - Tier3 : X-Ray, Athena, Redshift
-
-- Improve natural language understanding for AWS-specific queries.
-- Setting Panel like copilot for better user experience.
+- Add more data tools and file format support.
+- Improve natural language understanding for data queries.
+- Settings panel for better user experience.
 
 ## 💖 Links
 

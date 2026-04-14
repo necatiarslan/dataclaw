@@ -1,7 +1,7 @@
 {
   "name": "dataclaw",
-  "displayName": "DataClaw: DuckDB Data Analytics",
-  "description": "AI-assisted data analytics powered by DuckDB - query and analyze local data files with natural language",
+  "displayName": "DataClaw: AI Data Analytics",
+  "description": "AI-assisted data analytics - query and analyze local data files with natural language",
   "version": "1.0.0",
   "publisher": "NecatiARSLAN",
   "repository": {
@@ -21,7 +21,6 @@
     "Snippets"
   ],
   "keywords": [
-    "duckdb",
     "parquet",
     "analytics",
     "data",
@@ -44,7 +43,7 @@
         "id": "dataclaw.chat",
         "name": "DataClaw",
         "fullName": "Data Claw",
-        "description": "Query and analyze local data files with DuckDB",
+        "description": "Query and analyze local data files with AI",
         "isSticky": true
       }
     ],
@@ -80,7 +79,16 @@
           "items": {
             "type": "string",
             "enum": [
-              "QueryFileTool"
+              "QueryFileTool",
+              "FileMetadataTool",
+              "ColumnStatsTool",
+              "ExportTool",
+              "SummarizeTool",
+              "ChartTool",
+              "SampleTool",
+              "S3FileTool",
+              "DiffTool",
+              "ExcelSheetTool"
             ]
           },
           "default": []
@@ -90,11 +98,11 @@
     "languageModelTools": [
       {
         "name": "dataclaw_QueryFileTool",
-        "tags": ["duckdb", "data", "sql", "parquet", "csv", "json", "analytics"],
+        "tags": ["data", "sql", "parquet", "csv", "json", "analytics"],
         "displayName": "Query Data File",
         "toolReferenceName": "queryFile",
-        "modelDescription": "Execute a SQL query against one or more data files (Parquet, CSV, JSON, XLSX). Files are automatically registered as DuckDB views named by their basename (without extension), so SQL can reference them by view name or by raw file path. Returns columns, data types, row count, and up to pageSize rows.",
-        "userDescription": "Query and analyze data files using DuckDB SQL",
+        "modelDescription": "Execute a SQL query against one or more data files (Parquet, CSV, JSON, XLSX). Each file is automatically accessible by its basename without extension, so SQL can reference files by view name or by raw file path. Returns columns, data types, row count, and up to pageSize rows.",
+        "userDescription": "Query and analyze data files using SQL",
         "canBeReferencedInPrompt": true,
         "inputSchema": {
           "type": "object",
@@ -110,7 +118,7 @@
                 "filePaths": {
                   "type": "array",
                   "items": { "type": "string" },
-                  "description": "Absolute paths to data files to register as DuckDB views (Parquet, CSV, JSON, XLSX). Each file is accessible as a view named by its basename without extension."
+                  "description": "Absolute paths to data files (Parquet, CSV, JSON, XLSX). Each file is accessible as a view named by its basename without extension."
                 },
                 "sql": {
                   "type": "string",
@@ -126,11 +134,399 @@
           },
           "required": ["command", "params"]
         }
+      },
+      {
+        "name": "dataclaw_FileMetadataTool",
+        "tags": ["data", "metadata", "schema", "parquet", "csv", "json", "describe"],
+        "displayName": "File Metadata",
+        "toolReferenceName": "fileMetadata",
+        "modelDescription": "Get metadata about a data file. Commands: 'describeFile' returns column names, types, and row count; 'summarizeFile' returns per-column distinct count, null percentage, and inferred type; 'parquetMetadata' returns Parquet footer key-value metadata.",
+        "userDescription": "Inspect data file schema and metadata",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "enum": ["describeFile", "summarizeFile", "parquetMetadata"],
+              "description": "The metadata command to run."
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "filePath": {
+                  "type": "string",
+                  "description": "Absolute path to the data file (Parquet, CSV, JSON, XLSX)."
+                }
+              },
+              "required": ["filePath"]
+            }
+          },
+          "required": ["command", "params"]
+        }
+      },
+      {
+        "name": "dataclaw_ColumnStatsTool",
+        "tags": ["data", "statistics", "column", "analytics", "histogram"],
+        "displayName": "Column Statistics",
+        "toolReferenceName": "columnStats",
+        "modelDescription": "Get detailed statistics for a single column. Commands: 'fileColumnStats' computes stats directly from a data file; 'cacheColumnStats' computes stats from a cached query result. Returns count, nulls, unique values, min, max, and type-specific extras: mean/stddev/quantiles/histogram for numeric, top values for string, timeseries for date.",
+        "userDescription": "Get detailed column statistics and distributions",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "enum": ["fileColumnStats", "cacheColumnStats"],
+              "description": "The stats command to run."
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "filePath": {
+                  "type": "string",
+                  "description": "Absolute path to the data file (for fileColumnStats)."
+                },
+                "cacheId": {
+                  "type": "string",
+                  "description": "Cache ID from a previous query result (for cacheColumnStats)."
+                },
+                "column": {
+                  "type": "string",
+                  "description": "Column name to analyze."
+                },
+                "whereClause": {
+                  "type": "string",
+                  "description": "Optional SQL WHERE clause to filter rows (for cacheColumnStats)."
+                }
+              },
+              "required": ["column"]
+            }
+          },
+          "required": ["command", "params"]
+        }
+      },
+      {
+        "name": "dataclaw_ExportTool",
+        "tags": ["data", "export", "csv", "parquet", "json", "download"],
+        "displayName": "Export Results",
+        "toolReferenceName": "exportResults",
+        "modelDescription": "Export cached query results to a file. Supports CSV, Parquet, JSON, and JSONL formats. Requires a cacheId from a previous QueryFileTool result.",
+        "userDescription": "Export query results to CSV, Parquet, JSON, or JSONL",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "const": "exportResults",
+              "description": "Must be 'exportResults'"
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "cacheId": {
+                  "type": "string",
+                  "description": "Cache ID from a previous query result."
+                },
+                "format": {
+                  "type": "string",
+                  "enum": ["csv", "parquet", "json", "jsonl"],
+                  "description": "Output file format."
+                },
+                "outputPath": {
+                  "type": "string",
+                  "description": "Absolute path for the output file."
+                },
+                "maxRows": {
+                  "type": "number",
+                  "description": "Maximum number of rows to export (optional, exports all if omitted)."
+                },
+                "sortColumn": {
+                  "type": "string",
+                  "description": "Column to sort by before export (optional)."
+                },
+                "sortDirection": {
+                  "type": "string",
+                  "enum": ["asc", "desc"],
+                  "description": "Sort direction (optional, default: asc)."
+                },
+                "whereClause": {
+                  "type": "string",
+                  "description": "Optional SQL WHERE clause to filter rows before export."
+                }
+              },
+              "required": ["cacheId", "format", "outputPath"]
+            }
+          },
+          "required": ["command", "params"]
+        }
+      },
+      {
+        "name": "dataclaw_SummarizeTool",
+        "tags": ["data", "summarize", "statistics", "overview", "columns"],
+        "displayName": "Summarize Data",
+        "toolReferenceName": "summarize",
+        "modelDescription": "Get a quick summary of all columns in a data file or cached query result. Commands: 'summarizeFile' summarizes columns directly from a file; 'summarizeCache' summarizes a cached query result. Returns per-column distinct count, null percentage, and inferred type.",
+        "userDescription": "Summarize columns in a data file or query result",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "enum": ["summarizeFile", "summarizeCache"],
+              "description": "The summarize command to run."
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "filePath": {
+                  "type": "string",
+                  "description": "Absolute path to the data file (for summarizeFile)."
+                },
+                "cacheId": {
+                  "type": "string",
+                  "description": "Cache ID from a previous query result (for summarizeCache)."
+                }
+              }
+            }
+          },
+          "required": ["command", "params"]
+        }
+      },
+      {
+        "name": "dataclaw_ChartTool",
+        "tags": ["data", "chart", "visualization", "histogram", "distribution"],
+        "displayName": "Chart Data",
+        "toolReferenceName": "chart",
+        "modelDescription": "Get chart-ready data for a column. Commands: 'chartFileColumn' from a file; 'chartCacheColumn' from a cached result. Returns histogram (numeric), top values (string), or timeseries (date) data suitable for visualization.",
+        "userDescription": "Get chart data for a column (histogram, top values, timeseries)",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "enum": ["chartFileColumn", "chartCacheColumn"],
+              "description": "The chart command to run."
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "filePath": {
+                  "type": "string",
+                  "description": "Absolute path to the data file (for chartFileColumn)."
+                },
+                "cacheId": {
+                  "type": "string",
+                  "description": "Cache ID from a previous query result (for chartCacheColumn)."
+                },
+                "column": {
+                  "type": "string",
+                  "description": "Column name to chart."
+                },
+                "whereClause": {
+                  "type": "string",
+                  "description": "Optional SQL WHERE clause to filter rows (for chartCacheColumn)."
+                }
+              },
+              "required": ["column"]
+            }
+          },
+          "required": ["command", "params"]
+        }
+      },
+      {
+        "name": "dataclaw_SampleTool",
+        "tags": ["data", "sample", "random", "preview"],
+        "displayName": "Sample Data",
+        "toolReferenceName": "sample",
+        "modelDescription": "Get a random sample of rows from a data file or cached query result. Commands: 'sampleFile' samples from a file; 'sampleCache' samples from a cached result. Uses DuckDB's reservoir sampling for uniform random selection.",
+        "userDescription": "Get random sample rows from a data file or query result",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "enum": ["sampleFile", "sampleCache"],
+              "description": "The sample command to run."
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "filePath": {
+                  "type": "string",
+                  "description": "Absolute path to the data file (for sampleFile)."
+                },
+                "cacheId": {
+                  "type": "string",
+                  "description": "Cache ID from a previous query result (for sampleCache)."
+                },
+                "rows": {
+                  "type": "number",
+                  "description": "Number of random rows to return (default: 10)."
+                }
+              }
+            }
+          },
+          "required": ["command", "params"]
+        }
+      },
+      {
+        "name": "dataclaw_S3FileTool",
+        "tags": ["data", "s3", "aws", "cloud", "parquet", "csv"],
+        "displayName": "Query S3 File",
+        "toolReferenceName": "s3File",
+        "modelDescription": "Query or describe data files stored in Amazon S3 directly. Commands: 'describeS3' returns schema and row count; 'queryS3' runs SQL against the S3 file. Supports Parquet, CSV, and JSON. Optional AWS credentials can be provided.",
+        "userDescription": "Query data files directly from Amazon S3",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "enum": ["queryS3", "describeS3"],
+              "description": "The S3 command to run."
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "s3Path": {
+                  "type": "string",
+                  "description": "S3 URI (e.g. s3://bucket/path/to/file.parquet)."
+                },
+                "sql": {
+                  "type": "string",
+                  "description": "SQL query to run (for queryS3). If omitted, selects all rows up to pageSize."
+                },
+                "pageSize": {
+                  "type": "number",
+                  "description": "Maximum rows to return (default: 100)."
+                },
+                "accessKeyId": {
+                  "type": "string",
+                  "description": "AWS access key ID (optional, uses default credentials if omitted)."
+                },
+                "secretAccessKey": {
+                  "type": "string",
+                  "description": "AWS secret access key (optional)."
+                },
+                "sessionToken": {
+                  "type": "string",
+                  "description": "AWS session token (optional)."
+                },
+                "region": {
+                  "type": "string",
+                  "description": "AWS region (optional)."
+                }
+              },
+              "required": ["s3Path"]
+            }
+          },
+          "required": ["command", "params"]
+        }
+      },
+      {
+        "name": "dataclaw_DiffTool",
+        "tags": ["data", "diff", "compare", "difference", "changes"],
+        "displayName": "Diff Data Files",
+        "toolReferenceName": "diff",
+        "modelDescription": "Compare two data files and find differences. Shows rows added in file B, removed from file A, and optionally changed rows (when key columns are specified). Uses SQL EXCEPT for set-based comparison.",
+        "userDescription": "Compare two data files and find differences",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "const": "diffFiles",
+              "description": "Must be 'diffFiles'"
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "filePathA": {
+                  "type": "string",
+                  "description": "Absolute path to the first (baseline) data file."
+                },
+                "filePathB": {
+                  "type": "string",
+                  "description": "Absolute path to the second (comparison) data file."
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": ["added", "removed", "changed", "all"],
+                  "description": "What differences to show (default: all)."
+                },
+                "keyColumns": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Key columns for detecting changed rows (required for mode 'changed')."
+                },
+                "maxRows": {
+                  "type": "number",
+                  "description": "Maximum diff rows to return per category (default: 100)."
+                }
+              },
+              "required": ["filePathA", "filePathB"]
+            }
+          },
+          "required": ["command", "params"]
+        }
+      },
+      {
+        "name": "dataclaw_ExcelSheetTool",
+        "tags": ["data", "excel", "xlsx", "spreadsheet", "sheet"],
+        "displayName": "Excel Sheet",
+        "toolReferenceName": "excelSheet",
+        "modelDescription": "Work with specific sheets in Excel (.xlsx) files. Commands: 'describeSheet' returns column names, types, and row count; 'summarizeSheet' returns per-column statistics; 'sheetColumnStats' returns detailed stats for one column; 'querySheet' runs SQL against the sheet.",
+        "userDescription": "Inspect and query specific Excel sheets",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "enum": ["describeSheet", "summarizeSheet", "sheetColumnStats", "querySheet"],
+              "description": "The Excel sheet command to run."
+            },
+            "params": {
+              "type": "object",
+              "properties": {
+                "filePath": {
+                  "type": "string",
+                  "description": "Absolute path to the .xlsx file."
+                },
+                "sheet": {
+                  "type": "string",
+                  "description": "Sheet name to operate on."
+                },
+                "column": {
+                  "type": "string",
+                  "description": "Column name (for sheetColumnStats)."
+                },
+                "sql": {
+                  "type": "string",
+                  "description": "SQL query to run against the sheet (for querySheet). The sheet is available as a view."
+                },
+                "pageSize": {
+                  "type": "number",
+                  "description": "Maximum rows to return (default: 100, for querySheet)."
+                }
+              },
+              "required": ["filePath", "sheet"]
+            }
+          },
+          "required": ["command", "params"]
+        }
       }
     ],
     "commands": [
       {
-        "command": "dataclaw.AskAwsclaw",
+        "command": "dataclaw.AskDataclaw",
         "title": "Data Claw:Ask Dataclaw"
       },
       {

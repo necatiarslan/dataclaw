@@ -5,7 +5,16 @@ import { AIHandler } from './chat/AIHandler';
 import { CommandHistoryView } from './common/CommandHistoryView';
 import { McpManager } from './mcp/McpManager';
 import { McpManageView } from './mcp/McpManageView';
-import { QueryFileTool } from './queryfile/QueryFileTool';
+import { QueryFileTool } from './tools/QueryFileTool';
+import { FileMetadataTool } from './tools/FileMetadataTool';
+import { ColumnStatsTool } from './tools/ColumnStatsTool';
+import { ExportTool } from './tools/ExportTool';
+import { SummarizeTool } from './tools/SummarizeTool';
+import { ChartTool } from './tools/ChartTool';
+import { SampleTool } from './tools/SampleTool';
+import { S3FileTool } from './tools/S3FileTool';
+import { DiffTool } from './tools/DiffTool';
+import { ExcelSheetTool } from './tools/ExcelSheetTool';
 
 export function activate(context: vscode.ExtensionContext) {
 	ui.logToOutput('Dataclaw is now active!');
@@ -27,9 +36,18 @@ export function activate(context: vscode.ExtensionContext) {
 
 	if (Session.Current?.IsHostSupportLanguageTools()) {
 		context.subscriptions.push(
-			vscode.lm.registerTool('dataclaw_QueryFileTool', new QueryFileTool())
+			vscode.lm.registerTool('dataclaw_QueryFileTool', new QueryFileTool()),
+			vscode.lm.registerTool('dataclaw_FileMetadataTool', new FileMetadataTool()),
+			vscode.lm.registerTool('dataclaw_ColumnStatsTool', new ColumnStatsTool()),
+			vscode.lm.registerTool('dataclaw_ExportTool', new ExportTool()),
+			vscode.lm.registerTool('dataclaw_SummarizeTool', new SummarizeTool()),
+			vscode.lm.registerTool('dataclaw_ChartTool', new ChartTool()),
+			vscode.lm.registerTool('dataclaw_SampleTool', new SampleTool()),
+			vscode.lm.registerTool('dataclaw_S3FileTool', new S3FileTool()),
+			vscode.lm.registerTool('dataclaw_DiffTool', new DiffTool()),
+			vscode.lm.registerTool('dataclaw_ExcelSheetTool', new ExcelSheetTool())
 		);
-		ui.logToOutput('Registered QueryFileTool language model tool');
+		ui.logToOutput('Registered language model tools');
 	}
 	else {
 		ui.logToOutput(`Language model tools registration skipped for ${Session.Current?.HostAppName}`);
@@ -39,7 +57,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register Commands
 	context.subscriptions.push(
-		vscode.commands.registerCommand('dataclaw.AskAwsclaw', async () => { await AIHandler.Current.askAI(); }),
+		vscode.commands.registerCommand('dataclaw.AskDataclaw', async () => { await AIHandler.Current.askAI(); }),
 
 
 
