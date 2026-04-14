@@ -549,12 +549,6 @@
   },
   "scripts": {
     "compile": "tsc -b --force",
-    "discover-tools": "ts-node scripts/discoverTools.ts",
-    "extract-schemas": "ts-node scripts/extractSchemas.ts",
-    "sync-schemas": "ts-node scripts/syncSchemas.ts",
-    "generate-package": "ts-node scripts/generatePackageJson.ts",
-    "validate-schemas": "ts-node scripts/validateSchemas.ts",
-    "prebuild": "npm run sync-schemas && npm run discover-tools && npm run generate-package",
     "build": "npm run compile && node esbuild.js",
     "build:prod": "npm run compile && node esbuild.js --production",
     "typecheck": "tsc --noEmit --incremental",
@@ -562,8 +556,8 @@
     "watch": "npm-run-all -p watch:*",
     "watch:build": "node esbuild.js --watch",
     "watch:types": "tsc --watch --incremental",
-    "test": "npm run prebuild && npm run build && npm run lint && node ./out/test/runTest.js",
-    "vscode:prepublish": "npm run prebuild && npm run typecheck && npm run build:prod"
+    "test": "npm run build && npm run lint && node ./out/test/runTest.js",
+    "vscode:prepublish": "npm run typecheck && npm run build:prod"
   },
   "devDependencies": {
     "@types/glob": "^9.0.0",
