@@ -101,7 +101,7 @@
         "tags": ["data", "sql", "parquet", "csv", "json", "analytics"],
         "displayName": "Query Data File",
         "toolReferenceName": "queryFile",
-        "modelDescription": "Execute a SQL query against one or more data files (Parquet, CSV, JSON, XLSX). Each file is automatically accessible by its basename without extension, so SQL can reference files by view name or by raw file path. Returns columns, data types, row count, and up to pageSize rows.",
+        "modelDescription": "Execute a SQL query against one or more data files (Parquet, CSV, JSON, XLSX). Each file is automatically accessible by its basename without extension, so SQL can reference files by view name or by raw file path. Returns columns, data types, row count, and up to pageSize rows. Each statement in the response includes a cacheId that can be used with ExportTool (exportResults), SampleTool (sampleCache), ColumnStatsTool (cacheColumnStats), ChartTool (chartCacheColumn), and SummarizeTool (summarizeCache).",
         "userDescription": "Query and analyze data files using SQL",
         "canBeReferencedInPrompt": true,
         "inputSchema": {
@@ -209,10 +209,10 @@
       },
       {
         "name": "dataclaw_ExportTool",
-        "tags": ["data", "export", "csv", "parquet", "json", "download"],
+        "tags": ["data", "export", "csv", "parquet", "json", "download", "save"],
         "displayName": "Export Results",
         "toolReferenceName": "exportResults",
-        "modelDescription": "Export cached query results to a file. Supports CSV, Parquet, JSON, and JSONL formats. Requires a cacheId from a previous QueryFileTool result.",
+        "modelDescription": "Export data to a file. Supports CSV, Parquet, JSON, and JSONL formats. Commands: 'exportResults' exports a cached query result using the cacheId returned by QueryFileTool in statements[].cacheId; 'exportQuery' runs a SQL query directly against data files and exports the result without needing a prior query or cacheId.",
         "userDescription": "Export query results to CSV, Parquet, JSON, or JSONL",
         "canBeReferencedInPrompt": true,
         "inputSchema": {
@@ -220,15 +220,24 @@
           "properties": {
             "command": {
               "type": "string",
-              "const": "exportResults",
-              "description": "Must be 'exportResults'"
+              "enum": ["exportResults", "exportQuery"],
+              "description": "The export command to run."
             },
             "params": {
               "type": "object",
               "properties": {
                 "cacheId": {
                   "type": "string",
-                  "description": "Cache ID from a previous query result."
+                  "description": "Cache ID from a previous QueryFileTool result (for exportResults)."
+                },
+                "filePaths": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Absolute paths to data files (for exportQuery). Each file is accessible as a view named by its basename without extension."
+                },
+                "sql": {
+                  "type": "string",
+                  "description": "SQL query to execute and export (for exportQuery). Can reference files by view name."
                 },
                 "format": {
                   "type": "string",
@@ -245,19 +254,19 @@
                 },
                 "sortColumn": {
                   "type": "string",
-                  "description": "Column to sort by before export (optional)."
+                  "description": "Column to sort by before export (optional, for exportResults only)."
                 },
                 "sortDirection": {
                   "type": "string",
                   "enum": ["asc", "desc"],
-                  "description": "Sort direction (optional, default: asc)."
+                  "description": "Sort direction (optional, for exportResults only, default: asc)."
                 },
                 "whereClause": {
                   "type": "string",
-                  "description": "Optional SQL WHERE clause to filter rows before export."
+                  "description": "Optional SQL WHERE clause to filter rows (for exportResults only)."
                 }
               },
-              "required": ["cacheId", "format", "outputPath"]
+              "required": ["format", "outputPath"]
             }
           },
           "required": ["command", "params"]

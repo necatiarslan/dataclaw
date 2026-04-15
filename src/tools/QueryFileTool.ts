@@ -50,6 +50,7 @@ export class QueryFileTool extends BaseTool<QueryFileInput> {
         const statements = result.statements.map((s) => {
             const { meta, page } = s;
             return {
+                cacheId: meta.cacheId,
                 sql: meta.sql,
                 columns: meta.columns,
                 columnTypes: meta.columnTypes,

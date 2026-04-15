@@ -74,7 +74,14 @@ Returns: count, nulls, unique values, min, max. Numeric columns also get mean, s
 
 ### `#exportResults` — `dataclaw_ExportTool`
 
-Export cached query results to a file in CSV, Parquet, JSON, or JSONL format.
+Export data to a file in CSV, Parquet, JSON, or JSONL format.
+
+| Command | Description |
+|---|---|
+| `exportResults` | Export a cached query result using its cacheId |
+| `exportQuery` | Run SQL on data files and export directly (no prior query needed) |
+
+**`exportResults` parameters:**
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -85,6 +92,16 @@ Export cached query results to a file in CSV, Parquet, JSON, or JSONL format.
 | `sortColumn` | `string` | — | Column to sort by before export |
 | `sortDirection` | `string` | — | `asc` or `desc` |
 | `whereClause` | `string` | — | SQL WHERE clause to filter rows |
+
+**`exportQuery` parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `filePaths` | `string[]` | ✅ | Absolute paths to data files |
+| `sql` | `string` | ✅ | SQL query to execute and export |
+| `format` | `string` | ✅ | `csv`, `parquet`, `json`, or `jsonl` |
+| `outputPath` | `string` | ✅ | Absolute path for the output file |
+| `maxRows` | `number` | — | Maximum rows to export (all if omitted) |
 
 ---
 
@@ -315,11 +332,22 @@ Returns count, min, max, mean, stddev, quantiles, and histogram for numeric colu
 
 Ask: "Export the result to CSV"
 
-After a query returns a cacheId:
+**Option 1: Export from a cached query result (exportResults)**
+
+After a query returns a cacheId in the response:
 
 ```
 command: "exportResults"
-params: { cacheId: "<id>", format: "csv", outputPath: "/tmp/results.csv" }
+params: { cacheId: "<cacheId from previous query>", format: "csv", outputPath: "/tmp/results.csv" }
+```
+
+**Option 2: Run SQL and export directly (exportQuery)**
+
+No prior query needed — runs SQL on the files and exports in one step:
+
+```
+command: "exportQuery"
+params: { filePaths: ["/data/students.csv"], sql: "SELECT * FROM students WHERE gpa < 2.0", format: "csv", outputPath: "/data/at-risk-students.csv" }
 ```
 
 ---
@@ -430,6 +458,7 @@ The tool returns a JSON object:
   "statementCount": 1,
   "statements": [
     {
+      "cacheId": "_cache_1723456789123_1",
       "sql": "SELECT ...",
       "columns": ["product", "total_revenue"],
       "columnTypes": ["VARCHAR", "DOUBLE"],
@@ -444,6 +473,7 @@ The tool returns a JSON object:
 ```
 
 - `hasMore: true` means there are more rows than `pageSize`. Reduce scope with `LIMIT` or increase `pageSize`.
+- `cacheId` is a unique identifier for the cached result. Pass it to `exportResults`, `sampleCache`, `cacheColumnStats`, `chartCacheColumn`, or `summarizeCache` to work with the same result set.
 - `columnTypes` uses SQL type names (e.g. `VARCHAR`, `DOUBLE`, `BIGINT`, `DATE`, `TIMESTAMP`).
 
 ---
@@ -459,4 +489,4 @@ The tool returns a JSON object:
 - **Chart tool** returns raw data arrays — the AI should render them as markdown tables or describe the distribution in natural language.
 - **S3 files**: DuckDB's httpfs extension is used internally. AWS credentials from the environment are used by default; pass explicit credentials only if needed.
 - **Diff tool**: For large files, use `maxRows` to limit output. Use `keyColumns` when files share a primary key to detect value changes.
-- **Export tool** requires a `cacheId` from a prior `#queryFile` result. Run a query first, then export.
+- **Export tool** supports two modes: `exportResults` uses a `cacheId` from a prior `#queryFile` result; `exportQuery` runs SQL on files and exports directly without needing a prior query. Prefer `exportQuery` when no prior query has been run.

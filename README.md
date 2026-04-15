@@ -1,5 +1,8 @@
 # DataClaw: AI Data Analytics 📊
 
+![DataClaw Icon](docs/readme/DataClaw.gif)
+
+
 DataClaw is a Visual Studio Code extension that brings AI-assisted data analytics into your chat experience. Use natural language to query and analyze local data files (Parquet, CSV, JSON, XLSX) — without leaving your editor.
 
 ## 💬 Chat Modes
@@ -43,7 +46,12 @@ Get detailed statistics for a single column — count, nulls, min, max, mean, st
 | `cacheColumnStats` | Stats from a cached query result |
 
 ### ExportTool (`#exportResults`)
-Export cached query results to CSV, Parquet, JSON, or JSONL.
+Export data to CSV, Parquet, JSON, or JSONL.
+
+| Command | Description |
+|---|---|
+| `exportResults` | Export a cached query result using its cacheId |
+| `exportQuery` | Run SQL on data files and export directly (no prior query needed) |
 
 ### SummarizeTool (`#summarize`)
 Quick summary of all columns in a file or cached query result — distinct count, null percentage, and inferred type per column.
@@ -131,11 +139,6 @@ Work with specific sheets in Excel (.xlsx) files.
 ### Safety
 - **Q**: Can DataClaw modify my data files?  
   **A**: No. Files are opened read-only. No write operations are performed on source files.
-
-## ⚙️ Prerequisites
-
-- VS Code 1.104 or later (for Language Model Tools support)
-- Data files in a supported format: Parquet, CSV, JSON, or XLSX
 
 ## 🏁 Quick Start
 
